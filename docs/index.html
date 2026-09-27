@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Business Model Builder</title>
+<meta name="description" content="An interactive Business Model Canvas builder for product managers: answer nine guided blocks, get an investor-style critique, and check your unit economics.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #faf7f1;
+    --card: #ffffff;
+    --ink: #2b2620;
+    --muted: #7d7466;
+    --line: #e9e0d1;
+    --accent: #a85b2a;
+    --accent-soft: #f6eadd;
+    --good: #2f7d4f;
+    --warn: #b07d2a;
+    --bad: #b0442e;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Manrope", -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.55;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+  header.site {
+    padding: 36px 0 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  header.site h1 { margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -0.02em; }
+  header.site p { margin: 6px 0 0; color: var(--muted); max-width: 560px; font-size: 15px; }
+  .header-actions { display: flex; gap: 10px; padding-top: 6px; }
+  .btn {
+    appearance: none; border: 1px solid var(--line); background: var(--card);
+    color: var(--ink); font: 600 14px/1 "Manrope", sans-serif;
+    padding: 11px 18px; border-radius: 999px; cursor: pointer;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: #96601f; }
+  .btn:disabled { opacity: 0.4; cursor: default; }
+  nav.tabs {
+    display: flex; gap: 6px; margin: 12px 0 24px;
+    border-bottom: 2px solid var(--line); padding-bottom: 0;
+  }
+  nav.tabs button {
+    appearance: none; border: 0; background: transparent;
+    font: 700 15px/1 "Manrope", sans-serif; color: var(--muted);
+    padding: 12px 18px; cursor: pointer; border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+  }
+  nav.tabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+  .tabpage[hidden] { display: none; }
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 24px;
+    box-shadow: 0 1px 3px rgba(60, 45, 25, 0.05);
+  }
+  /* Builder */
+  .builder-grid { display: grid; grid-template-columns: 260px 1fr; gap: 20px; }
+  .steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+  .steps li button {
+    width: 100%; text-align: left; appearance: none; cursor: pointer;
+    border: 1px solid transparent; background: transparent; border-radius: 8px;
+    padding: 10px 12px; font: 600 14px/1.3 "Manrope", sans-serif; color: var(--muted);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .steps li button .n {
+    width: 24px; height: 24px; border-radius: 50%; flex: none;
+    background: var(--accent-soft); color: var(--accent);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800;
+  }
+  .steps li button.done .n { background: var(--good); color: #fff; }
+  .steps li button[aria-current="true"] { background: var(--accent-soft); color: var(--ink); border-color: var(--line); }
+  .builder-main h2 { margin: 0 0 4px; font-size: 22px; letter-spacing: -0.01em; }
+  .builder-main .tagline { color: var(--accent); font-weight: 700; margin: 0 0 14px; font-size: 15px; }
+  .builder-main ol.questions { margin: 0 0 16px; padding-left: 20px; color: var(--muted); font-size: 14px; }
+  .builder-main ol.questions li { margin-bottom: 6px; }
+  textarea.block-input {
+    width: 100%; min-height: 150px; resize: vertical;
+    border: 1px solid var(--line); border-radius: 8px; padding: 14px;
+    font: 400 15px/1.6 "Manrope", sans-serif; color: var(--ink); background: #fffdf9;
+  }
+  textarea.block-input:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+  .builder-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; }
+  .progress { font-size: 13px; color: var(--muted); font-weight: 600; }
+  .progress-bar { height: 6px; background: var(--line); border-radius: 3px; margin-top: 14px; overflow: hidden; }
+  .progress-bar div { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.25s; }
+  /* Canvas */
+  .canvas-grid {
+    display: grid; gap: 12px;
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-areas:
+      "kp ka vp cr cs"
+      "kp kr vp ch cs"
+      "cost cost cost rev rev";
+  }
+  .canvas-cell {
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 16px; min-height: 170px; cursor: pointer;
+  }
+  .canvas-cell:hover { border-color: var(--accent); }
+  .canvas-cell h3 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); }
+  .canvas-cell p { margin: 0; font-size: 13.5px; color: var(--ink); white-space: pre-wrap; }
+  .canvas-cell p.empty { color: var(--muted); font-style: italic; }
+  .cell-kp { grid-area: kp; } .cell-ka { grid-area: ka; } .cell-vp { grid-area: vp; }
+  .cell-cr { grid-area: cr; } .cell-cs { grid-area: cs; } .cell-kr { grid-area: kr; }
+  .cell-ch { grid-area: ch; } .cell-cost { grid-area: cost; min-height: 120px; }
+  .cell-rev { grid-area: rev; min-height: 120px; }
+  .canvas-hint { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+  /* Critique */
+  .critique-top { display: flex; gap: 24px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+  .score-ring { position: relative; width: 140px; height: 140px; flex: none; }
+  .score-ring svg { transform: rotate(-90deg); }
+  .score-ring .score-num {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .score-ring .score-num b { font-size: 34px; font-weight: 800; }
+  .score-ring .score-num span { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .critique-verdict { font-size: 16px; max-width: 640px; }
+  .bars { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px 24px; margin: 8px 0 20px; }
+  .bar-row { font-size: 13.5px; }
+  .bar-row .bar-label { display: flex; justify-content: space-between; margin-bottom: 4px; font-weight: 600; }
+  .bar-track { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .finding-list { list-style: none; margin: 0; padding: 0; }
+  .finding-list li {
+    padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; font-size: 14px;
+  }
+  .finding-list.strengths li { background: #eef5ef; border: 1px solid #d3e5d6; }
+  .finding-list.risks li { background: #f9efe9; border: 1px solid #ecd9c6; }
+  .finding-list h4, .section-h { margin: 0 0 10px; font-size: 15px; }
+  /* Economics */
+  .econ-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-weight: 700; font-size: 13.5px; margin-bottom: 5px; }
+  .field small { display: block; color: var(--muted); font-weight: 400; font-size: 12.5px; margin-bottom: 5px; }
+  .field input {
+    width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px;
+    font: 600 15px/1.4 "Manrope", sans-serif; color: var(--ink); background: #fffdf9;
+  }
+  .field input:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+  .results { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .result {
+    background: #fffdf9; border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px;
+  }
+  .result .k { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+  .result .v { font-size: 20px; font-weight: 800; margin-top: 2px; }
+  .result .v.good { color: var(--good); } .result .v.bad { color: var(--bad); }
+  footer.site { padding: 32px 0 48px; color: var(--muted); font-size: 13px; text-align: center; }
+  footer.site a { color: var(--accent); }
+  @media (max-width: 860px) {
+    .builder-grid, .econ-grid, .two-col { grid-template-columns: 1fr; }
+    .steps { flex-direction: row; flex-wrap: wrap; }
+    .steps li button .lbl { display: none; }
+    .canvas-grid {
+      grid-template-columns: 1fr;
+      grid-template-areas: "kp" "ka" "kr" "vp" "cr" "ch" "cs" "cost" "rev";
+    }
+    .canvas-cell { min-height: 0; }
+    .results { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="site">
+    <div>
+      <h1>Business Model Builder</h1>
+      <p>Answer nine guided blocks, get an honest investor-style critique, and check whether the math works. Everything runs in your browser. Nothing is sent anywhere.</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn" id="btn-sample" type="button">Load sample</button>
+      <button class="btn" id="btn-clear" type="button">Clear</button>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button role="tab" aria-selected="true" data-tab="builder" type="button">Builder</button>
+    <button role="tab" aria-selected="false" data-tab="canvas" type="button">Canvas</button>
+    <button role="tab" aria-selected="false" data-tab="critique" type="button">Critique</button>
+    <button role="tab" aria-selected="false" data-tab="economics" type="button">Economics</button>
+  </nav>
+  <main>
+    <section class="tabpage" id="page-builder" role="tabpanel">
+      <div class="builder-grid">
+        <div class="card" style="padding:16px;">
+          <ol class="steps" id="steps"></ol>
+          <div class="progress" id="progress-text" style="margin-top:12px;">0 of 9 blocks filled</div>
+          <div class="progress-bar"><div id="progress-fill" style="width:0%"></div></div>
+        </div>
+        <div class="card builder-main">
+          <h2 id="b-name"></h2>
+          <p class="tagline" id="b-tagline"></p>
+          <ol class="questions" id="b-questions"></ol>
+          <textarea class="block-input" id="b-input" aria-label="Your answer for this block"></textarea>
+          <div class="builder-nav">
+            <button class="btn" id="b-prev" type="button">Back</button>
+            <span class="progress" id="b-step-label"></span>
+            <button class="btn primary" id="b-next" type="button">Next</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tabpage" id="page-canvas" role="tabpanel" hidden>
+      <p class="canvas-hint">Your nine blocks at a glance. Select any block to edit it in the Builder.</p>
+      <div class="canvas-grid" id="canvas-grid"></div>
+    </section>
+
+    <section class="tabpage" id="page-critique" role="tabpanel" hidden>
+      <div class="card">
+        <div class="critique-top">
+          <div class="score-ring">
+            <svg width="140" height="140" viewBox="0 0 140 140" aria-hidden="true">
+              <circle cx="70" cy="70" r="54" fill="none" stroke="#e9e0d1" stroke-width="12"/>
+              <circle id="ring-fill" cx="70" cy="70" r="54" fill="none" stroke="#2f7d4f"
+                      stroke-width="12" stroke-linecap="round" stroke-dasharray="339.29" stroke-dashoffset="339.29"/>
+            </svg>
+            <div class="score-num"><b id="score-num">0</b><span>out of 100</span></div>
+          </div>
+          <p class="critique-verdict" id="critique-verdict"></p>
+        </div>
+        <h3 class="section-h">Per-block scores</h3>
+        <div class="bars" id="bars"></div>
+        <div class="two-col">
+          <div>
+            <h3 class="section-h">Strengths</h3>
+            <ul class="finding-list strengths" id="strengths"></ul>
+          </div>
+          <div>
+            <h3 class="section-h">Investor questions</h3>
+            <ul class="finding-list risks" id="risks"></ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tabpage" id="page-economics" role="tabpanel" hidden>
+      <div class="econ-grid">
+        <div class="card">
+          <h3 class="section-h" style="font-size:17px;">Your numbers</h3>
+          <div class="field">
+            <label for="e-price">Price per unit ($)</label>
+            <small>What one unit costs the customer. A unit can be a seat, an order, a month of service.</small>
+            <input id="e-price" type="number" min="0" step="any" value="49">
+          </div>
+          <div class="field">
+            <label for="e-units">Units per customer per year</label>
+            <small>How many units a typical customer buys in a year.</small>
+            <input id="e-units" type="number" min="0" step="any" value="240">
+          </div>
+          <div class="field">
+            <label for="e-customers">Customers</label>
+            <small>Paying customers you expect this year.</small>
+            <input id="e-customers" type="number" min="0" step="any" value="120">
+          </div>
+          <div class="field">
+            <label for="e-varcost">Variable cost per unit ($)</label>
+            <small>What each unit costs you: hosting, support, materials.</small>
+            <input id="e-varcost" type="number" min="0" step="any" value="6">
+          </div>
+          <div class="field">
+            <label for="e-fixed">Fixed costs per year ($)</label>
+            <small>Costs that stay flat: team, office, base software.</small>
+            <input id="e-fixed" type="number" min="0" step="any" value="850000">
+          </div>
+          <div class="field">
+            <label for="e-cac">Customer acquisition cost ($)</label>
+            <small>Average cost to win one paying customer.</small>
+            <input id="e-cac" type="number" min="0" step="any" value="1800">
+          </div>
+          <div class="field">
+            <label for="e-years">Average customer lifetime (years)</label>
+            <small>How long a customer stays before leaving.</small>
+            <input id="e-years" type="number" min="0" step="any" value="3.5">
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="section-h" style="font-size:17px;">Results</h3>
+          <div class="results" id="econ-results"></div>
+          <p style="color:var(--muted);font-size:13px;margin:14px 0 0;">LTV:CAC above 3 is healthy. CAC payback under 12 months is healthy. Break-even tells you how many customers cover your fixed costs.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site">
+    Business Model Builder &middot; open source under the MIT License &middot;
+    <a href="https://github.com/bandalok/business-model-builder">github.com/bandalok/business-model-builder</a>
+  </footer>
+</div>
+<script>
+"use strict";
+/* ---------- Data (mirrors bmc/blocks.py and bmc/sample.py) ---------- */
+var BLOCKS = [
+  { id: "customer_segments", name: "Customer Segments", tagline: "Who pays you? Be specific.",
+    questions: [
+      "Name the exact group of people or companies who will pay. What job title, team, or company size?",
+      "How many of them exist, and how do you know?",
+      "Which segment will you serve first, and why them?" ] },
+  { id: "value_propositions", name: "Value Propositions", tagline: "Why should they pick you?",
+    questions: [
+      "What painful problem do you solve, in the customer's own words?",
+      "What do they use today instead of you, and why is that worse?",
+      "What changes for them in the first 30 days of using your product?" ] },
+  { id: "channels", name: "Channels", tagline: "How do customers find and buy you?",
+    questions: [
+      "Where do your customers already hang out or shop?",
+      "How will they hear about you the first time?",
+      "How do they actually pay and get started?" ] },
+  { id: "customer_relationships", name: "Customer Relationships", tagline: "How do you win and keep them?",
+    questions: [
+      "Do customers serve themselves, or does a human help them?",
+      "What makes a customer stay after the first year?",
+      "How do you hear about problems before customers leave?" ] },
+  { id: "revenue_streams", name: "Revenue Streams", tagline: "How does money come in?",
+    questions: [
+      "What exactly do customers pay for, and how much?",
+      "Is it one-time, monthly, yearly, or usage-based?",
+      "What could you charge for later that you give away now?" ] },
+  { id: "key_resources", name: "Key Resources", tagline: "What do you need to deliver this?",
+    questions: [
+      "What assets must exist for the product to work: data, tech, brand, people?",
+      "Which of these are hard for a competitor to copy?",
+      "What are you missing today?" ] },
+  { id: "key_activities", name: "Key Activities", tagline: "What work matters most?",
+    questions: [
+      "What does the team do every week that keeps the value flowing?",
+      "Which activity, if stopped, would break the product in a month?",
+      "What will you deliberately not do?" ] },
+  { id: "key_partnerships", name: "Key Partnerships", tagline: "Who do you depend on?",
+    questions: [
+      "Which outside companies or people does your product rely on?",
+      "What happens if your biggest partner changes their terms?",
+      "Which partnership saves you the most time or money?" ] },
+  { id: "cost_structure", name: "Cost Structure", tagline: "Where does the money go?",
+    questions: [
+      "What are your three biggest costs?",
+      "Which costs grow with each new customer, and which stay flat?",
+      "What does it cost you to serve one customer for a year?" ] }
+];
+
+var SAMPLE_MODEL = {
+  customer_segments: "Heads of engineering and product operations at software companies with 50 to 500 employees. About 40,000 such companies exist in the US and Europe. We start with engineering leaders because they feel the reporting pain every sprint review.",
+  value_propositions: "Engineering leaders get a clear weekly picture of team output without chasing status updates. SampleCo pulls data from tools like Jira and GitHub and turns it into one dashboard the whole team trusts. Managers stop spending Friday afternoons building spreadsheet reports by hand.",
+  channels: "Content marketing: a weekly newsletter read by 12,000 engineering managers. Product-led signup with a 14-day free trial. Two integration partners, Jira and GitHub marketplaces, list us in their directories. A 3-person sales team closes deals over 50 seats.",
+  customer_relationships: "Self-serve onboarding with a setup checklist that most teams finish in under an hour. A customer success manager is assigned to every account over 50 seats. Quarterly business reviews for accounts over $10,000 per year keep renewals above 90%.",
+  revenue_streams: "Subscription at $49 per seat per month, billed annually. Average customer starts with 20 seats, about $11,760 per year. A $499 per month enterprise tier adds single sign-on and audit logs. Services revenue is zero on purpose: the product must sell itself.",
+  key_resources: "The analytics engine that cleans and joins data from 8 integrations. A data pipeline team of 6 engineers. Brand trust from 400 published customer case metrics. SOC 2 certification, renewed every year.",
+  key_activities: "Shipping product improvements to the dashboard every two weeks. Maintaining the 8 data integrations so they never break. Publishing one useful engineering-management article per week. Supporting trial users within 4 business hours.",
+  key_partnerships: "Jira and GitHub list us in their marketplaces and drive 30% of trials. AWS hosts everything; if prices rose 20% we would move batch jobs to a second cloud provider within a quarter. Stripe handles all billing.",
+  cost_structure: "Biggest costs: 14-person team at about $2.1M per year, AWS hosting at $180,000 per year, and marketing spend of $240,000 per year. Variable cost per seat per month is about $6 for hosting and support. Fixed costs run about $850,000 per year excluding the team."
+};
+
+var SAMPLE_ECONOMICS = { price: 49, units: 240, customers: 120, varcost: 6, fixed: 850000, cac: 1800, years: 3.5 };
+
+/* ---------- State ---------- */
+var LS_BLOCKS = "bmb-blocks-v1", LS_ECON = "bmb-econ-v1", LS_SEEDED = "bmb-seeded-v1";
+function loadJSON(key, fallback) {
+  try { var v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+  catch (e) { return fallback; }
+}
+var state = {
+  blocks: loadJSON(LS_BLOCKS, {}),
+  econ: loadJSON(LS_ECON, { price: 49, units: 240, customers: 120, varcost: 6, fixed: 850000, cac: 1800, years: 3.5 }),
+  step: 0
+};
+if (!localStorage.getItem(LS_SEEDED)) {
+  state.blocks = Object.assign({}, SAMPLE_MODEL);
+  localStorage.setItem(LS_SEEDED, "1");
+  persist();
+}
+function persist() {
+  try {
+    localStorage.setItem(LS_BLOCKS, JSON.stringify(state.blocks));
+    localStorage.setItem(LS_ECON, JSON.stringify(state.econ));
+  } catch (e) {}
+}
+function blockText(id) { return state.blocks[id] || ""; }
+
+/* ---------- Tabs ---------- */
+var tabBtns = Array.prototype.slice.call(document.querySelectorAll("nav.tabs button"));
+function showTab(name) {
+  tabBtns.forEach(function (b) { b.setAttribute("aria-selected", b.dataset.tab === name ? "true" : "false"); });
+  ["builder", "canvas", "critique", "economics"].forEach(function (t) {
+    document.getElementById("page-" + t).hidden = (t !== name);
+  });
+  if (name === "canvas") renderCanvas();
+  if (name === "critique") renderCritique();
+  if (name === "economics") renderEconomics();
+}
+tabBtns.forEach(function (b) { b.addEventListener("click", function () { showTab(b.dataset.tab); }); });
+
+/* ---------- Builder wizard ---------- */
+var stepsEl = document.getElementById("steps");
+function renderSteps() {
+  stepsEl.innerHTML = "";
+  var filled = 0;
+  BLOCKS.forEach(function (b, i) {
+    var has = blockText(b.id).trim().length > 0;
+    if (has) filled++;
+    var li = document.createElement("li");
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.setAttribute("aria-current", i === state.step ? "true" : "false");
+    if (has) btn.className = "done";
+    var n = document.createElement("span"); n.className = "n"; n.textContent = has ? "\u2713" : (i + 1);
+    var lbl = document.createElement("span"); lbl.className = "lbl"; lbl.textContent = b.name;
+    btn.appendChild(n); btn.appendChild(lbl);
+    btn.addEventListener("click", function () { state.step = i; renderBuilder(); });
+    li.appendChild(btn);
+    stepsEl.appendChild(li);
+  });
+  document.getElementById("progress-text").textContent = filled + " of 9 blocks filled";
+  document.getElementById("progress-fill").style.width = (filled / 9 * 100) + "%";
+}
+var bInput = document.getElementById("b-input");
+function renderBuilder() {
+  var b = BLOCKS[state.step];
+  document.getElementById("b-name").textContent = b.name;
+  document.getElementById("b-tagline").textContent = b.tagline;
+  var ql = document.getElementById("b-questions");
+  ql.innerHTML = "";
+  b.questions.forEach(function (q) {
+    var li = document.createElement("li"); li.textContent = q; ql.appendChild(li);
+  });
+  if (document.activeElement !== bInput) bInput.value = blockText(b.id);
+  document.getElementById("b-step-label").textContent = "Block " + (state.step + 1) + " of 9";
+  document.getElementById("b-prev").disabled = state.step === 0;
+  document.getElementById("b-next").textContent = state.step === 8 ? "Finish" : "Next";
+  renderSteps();
+}
+bInput.addEventListener("input", function () {
+  state.blocks[BLOCKS[state.step].id] = bInput.value;
+  persist();
+  renderSteps();
+});
+document.getElementById("b-prev").addEventListener("click", function () {
+  if (state.step > 0) { state.step--; renderBuilder(); }
+});
+document.getElementById("b-next").addEventListener("click", function () {
+  if (state.step < 8) { state.step++; renderBuilder(); }
+  else { showTab("canvas"); }
+});
+
+/* ---------- Canvas ---------- */
+var CELL_CLASS = {
+  key_partnerships: "cell-kp", key_activities: "cell-ka", value_propositions: "cell-vp",
+  customer_relationships: "cell-cr", customer_segments: "cell-cs", key_resources: "cell-kr",
+  channels: "cell-ch", cost_structure: "cell-cost", revenue_streams: "cell-rev"
+};
+var CANVAS_ORDER = ["key_partnerships", "key_activities", "key_resources", "value_propositions",
+  "customer_relationships", "channels", "customer_segments", "cost_structure", "revenue_streams"];
+function renderCanvas() {
+  var grid = document.getElementById("canvas-grid");
+  grid.innerHTML = "";
+  CANVAS_ORDER.forEach(function (id) {
+    var b = BLOCKS.filter(function (x) { return x.id === id; })[0];
+    var cell = document.createElement("div");
+    cell.className = "canvas-cell " + CELL_CLASS[id];
+    cell.setAttribute("role", "button");
+    cell.setAttribute("tabindex", "0");
+    var h = document.createElement("h3"); h.textContent = b.name;
+    var p = document.createElement("p");
+    var t = blockText(id).trim();
+    p.textContent = t || "Not filled in yet. Select to add it.";
+    if (!t) p.className = "empty";
+    cell.appendChild(h); cell.appendChild(p);
+    function go() {
+      state.step = BLOCKS.indexOf(b);
+      showTab("builder");
+      renderBuilder();
+    }
+    cell.addEventListener("click", go);
+    cell.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") go(); });
+    grid.appendChild(cell);
+  });
+}
+
+/* ---------- Critique engine (JS port of bmc/critique.py) ---------- */
+var VAGUE_WORDS = ["everyone", "anyone", "everybody", "best", "world-class", "world class",
+  "cutting-edge", "cutting edge", "revolutionary", "disruptive", "synergy", "synergies",
+  "next-generation", "next generation", "game-changing", "game changing",
+  "best-in-class", "best in class"];
+var STOPWORDS = { the:1, and:1, for:1, with:1, that:1, this:1, from:1, your:1, you:1,
+  our:1, are:1, will:1, can:1, have:1, has:1, into:1, each:1, per:1,
+  they:1, them:1, their:1, who:1, what:1, when:1, how:1, why:1,
+  not:1, but:1, all:1, any:1, its:1, "it's":1, via:1, use:1, using:1,
+  used:1, get:1, gets:1, one:1, two:1, new:1, than:1, then:1, also:1,
+  such:1, more:1, most:1, over:1, under:1, between:1, through:1 };
+var BLOCK_RISKS = {
+  customer_segments: "Who exactly pays you? 'Everyone' is not a customer segment. Name a real group.",
+  value_propositions: "Why would anyone switch? Your value prop does not say what changes for the customer.",
+  channels: "Where do the first 100 customers come from? Name a real channel.",
+  customer_relationships: "How do you keep customers after year one? High touch needs high prices to work.",
+  revenue_streams: "What is the price? No investor funds a business with no numbers on revenue.",
+  key_resources: "What do you own that is hard to copy? If the honest answer is 'the team', say so plainly.",
+  key_activities: "What does the team do every week? List the work, not the job titles.",
+  key_partnerships: "Who can break you? Name the dependency and your backup plan.",
+  cost_structure: "What does one customer cost you per year? If you do not know, your pricing is a guess."
+};
+var BLOCK_NAMES = {};
+BLOCKS.forEach(function (b) { BLOCK_NAMES[b.id] = b.name; });
+
+function wordsOf(t) { var m = (t || "").match(/[A-Za-z0-9']+/g); return m || []; }
+function vagueHits(t) {
+  var low = " " + (t || "").toLowerCase() + " ", h = 0;
+  VAGUE_WORDS.forEach(function (w) {
+    var needle = " " + w + " ", i = -1;
+    while ((i = low.indexOf(needle, i + 1)) !== -1) h++;
+  });
+  return h;
+}
+function numberHits(t) {
+  var m = (t || "").match(/\$\s?[\d,]+(?:\.\d+)?|\d+\s?%|\b\d[\d,]*(?:\.\d+)?\b/g);
+  return m ? m.length : 0;
+}
+function namedHits(t) {
+  t = t || "";
+  var re = /\b[A-Z][a-zA-Z]+\b/g, m, c = 0;
+  while ((m = re.exec(t)) !== null) {
+    var prev = t.slice(0, m.index).replace(/\s+$/, "");
+    if (!prev || ".!?".indexOf(prev[prev.length - 1]) !== -1) continue;
+    c++;
+  }
+  return c;
+}
+function scoreBlock(t) {
+  if (!t || !t.trim()) return 0;
+  var n = wordsOf(t).length;
+  var s = Math.min(n, 45) / 45 * 55;
+  s -= Math.min(vagueHits(t) * 6, 24);
+  s += Math.min(numberHits(t) * 4, 16);
+  s += Math.min(namedHits(t) * 2, 10);
+  return Math.max(0, Math.min(100, Math.round(s)));
+}
+function contentWords(t) {
+  var s = {};
+  wordsOf(t).forEach(function (w) {
+    w = w.toLowerCase();
+    if (w.length > 3 && !STOPWORDS[w]) s[w] = 1;
+  });
+  return s;
+}
+function overlap(a, b) {
+  var n = 0;
+  for (var k in a) if (b[k]) n++;
+  return n;
+}
+var MONEY_WORDS_RE = /\b(per month|per year|per seat|per user|monthly|yearly|annual|subscription|pricing|price|cost|costs|revenue|arr|mrr)\b/i;
+var PRICE_RE = /\$|\bper month\b|\bper year\b|\bper seat\b|\bper user\b|\bpricing\b|\bmrr\b|\barr\b/i;
+function hasMoneyTerms(t) { return MONEY_WORDS_RE.test(t || ""); }
+function hasPriceTerms(t) {
+  t = t || "";
+  return PRICE_RE.test(t) || (t.match(/\$\s?[\d,]+(?:\.\d+)?|\d+\s?%|\b\d[\d,]*(?:\.\d+)?\b/g) || []).length > 0;
+}
+function critiqueModel(blocks) {
+  blocks = blocks || {};
+  var perBlock = {}, strengths = [], risks = [], cross = 0, id;
+  for (id in BLOCK_NAMES) perBlock[id] = scoreBlock(blocks[id] || "");
+  for (id in BLOCK_NAMES) {
+    if (perBlock[id] >= 70) strengths.push(BLOCK_NAMES[id] + " is specific and concrete. Keep it.");
+    else if (perBlock[id] < 40) risks.push(BLOCK_RISKS[id]);
+  }
+  var totalVague = 0;
+  for (id in BLOCK_NAMES) totalVague += vagueHits(blocks[id] || "");
+  if (totalVague >= 2)
+    risks.push("Cut the filler words ('everyone', 'world-class', 'best'). Investors read them as 'we have not thought about this.'");
+  var seg = contentWords(blocks.customer_segments), vp = contentWords(blocks.value_propositions);
+  if (Object.keys(seg).length && Object.keys(vp).length && overlap(seg, vp) >= 2) {
+    strengths.push("Your value prop names the same customers as your segments. Investors like that."); cross++;
+  } else {
+    risks.push("Who is the value prop for? It never names your customer segment. An investor will ask: who exactly pays?");
+  }
+  var revMoney = hasPriceTerms(blocks.revenue_streams), costMoney = hasMoneyTerms(blocks.cost_structure);
+  if (revMoney && costMoney) {
+    strengths.push("You put numbers on both sides of the money equation. That is rarer than it should be."); cross++;
+  }
+  if (!revMoney) risks.push("How do you make money, exactly? Your revenue streams name no price. Put a number on it.");
+  if (!costMoney) risks.push("What does it cost to run this? Your cost structure has no numbers. Rough guesses beat blanks.");
+  var ch = contentWords(blocks.channels);
+  if (Object.keys(seg).length && Object.keys(ch).length && overlap(seg, ch) >= 1) {
+    strengths.push("Your channels speak to the same audience you named in segments."); cross++;
+  } else {
+    risks.push("How do these channels reach those customers? Your channels do not mention your segment. Where do the first 100 come from?");
+  }
+  var res = contentWords(blocks.key_resources), act = contentWords(blocks.key_activities);
+  if (Object.keys(res).length && Object.keys(act).length && overlap(res, act) >= 1) {
+    strengths.push("Your key activities line up with your key resources. The story holds together."); cross++;
+  } else {
+    risks.push("What do you actually do all day? Your key activities do not connect to your key resources. Pick the work that matters.");
+  }
+  var sum = 0, n = 0;
+  for (id in perBlock) { sum += perBlock[id]; n++; }
+  var overall = Math.round(sum / n) + 2 * cross - 3 * risks.length;
+  overall = Math.max(0, Math.min(100, overall));
+  return { overall_score: overall, per_block: perBlock, strengths: strengths, risks: risks };
+}
+
+/* ---------- Critique rendering ---------- */
+function scoreColor(s) { return s >= 70 ? "#2f7d4f" : (s >= 40 ? "#b07d2a" : "#b0442e"); }
+function renderCritique() {
+  var r = critiqueModel(state.blocks);
+  var C = 339.29;
+  var ring = document.getElementById("ring-fill");
+  ring.style.strokeDashoffset = String(C * (1 - r.overall_score / 100));
+  ring.setAttribute("stroke", scoreColor(r.overall_score));
+  document.getElementById("score-num").textContent = r.overall_score;
+  var verdict = document.getElementById("critique-verdict");
+  if (r.overall_score >= 70) verdict.textContent = "This is a fundable-looking canvas. The story is specific and the blocks agree with each other.";
+  else if (r.overall_score >= 40) verdict.textContent = "A decent start, but an investor would poke holes. Work through the questions on the right.";
+  else verdict.textContent = "This would not survive a first meeting. Fill in the blocks with specifics: names, numbers, real channels.";
+  var bars = document.getElementById("bars");
+  bars.innerHTML = "";
+  BLOCKS.forEach(function (b) {
+    var s = r.per_block[b.id];
+    var row = document.createElement("div"); row.className = "bar-row";
+    var label = document.createElement("div"); label.className = "bar-label";
+    var nm = document.createElement("span"); nm.textContent = b.name;
+    var sc = document.createElement("span"); sc.textContent = s + " / 100";
+    label.appendChild(nm); label.appendChild(sc);
+    var track = document.createElement("div"); track.className = "bar-track";
+    var fill = document.createElement("div"); fill.className = "bar-fill";
+    fill.style.width = s + "%"; fill.style.background = scoreColor(s);
+    track.appendChild(fill);
+    row.appendChild(label); row.appendChild(track);
+    bars.appendChild(row);
+  });
+  function fillList(id, items, emptyText) {
+    var ul = document.getElementById(id);
+    ul.innerHTML = "";
+    if (!items.length) {
+      var li = document.createElement("li"); li.textContent = emptyText; ul.appendChild(li);
+      return;
+    }
+    items.forEach(function (t) {
+      var li = document.createElement("li"); li.textContent = t; ul.appendChild(li);
+    });
+  }
+  fillList("strengths", r.strengths, "No clear strengths yet. Add specifics to earn some.");
+  fillList("risks", r.risks, "No red flags. Nice.");
+}
+
+/* ---------- Economics (JS port of bmc/unit_economics.py) ---------- */
+var ECON_FIELDS = ["price", "units", "customers", "varcost", "fixed", "cac", "years"];
+function readEcon() {
+  var e = {};
+  ECON_FIELDS.forEach(function (f) {
+    var v = parseFloat(document.getElementById("e-" + f).value);
+    e[f] = (isNaN(v) || v < 0) ? 0 : v;
+  });
+  return e;
+}
+function calcEcon(e) {
+  var annualRevenue = e.price * e.units * e.customers;
+  var totalVar = e.varcost * e.units * e.customers;
+  var grossProfit = annualRevenue - totalVar;
+  var margin = annualRevenue > 0 ? grossProfit / annualRevenue * 100 : 0;
+  var contribution = grossProfit - e.fixed;
+  var perCustomer = (e.price - e.varcost) * e.units;
+  var breakEven = perCustomer > 0 ? Math.ceil(e.fixed / perCustomer) : null;
+  var ltv = perCustomer * e.years;
+  var ltvCac = e.cac > 0 ? ltv / e.cac : null;
+  var monthly = perCustomer / 12;
+  var payback = (monthly > 0 && e.cac > 0) ? e.cac / monthly : null;
+  return { annualRevenue: annualRevenue, totalVar: totalVar, grossProfit: grossProfit,
+    margin: margin, contribution: contribution, breakEven: breakEven,
+    ltv: ltv, ltvCac: ltvCac, payback: payback };
+}
+function fmtMoney(v) {
+  if (v === null || v === undefined) return "N/A";
+  var neg = v < 0 ? "-" : "";
+  return neg + "$" + Math.round(Math.abs(v)).toLocaleString("en-US");
+}
+function renderEconomics() {
+  ECON_FIELDS.forEach(function (f) {
+    document.getElementById("e-" + f).value = state.econ[f];
+  });
+  updateEconResults();
+}
+function updateEconResults() {
+  var e = readEcon();
+  state.econ = e; persist();
+  var r = calcEcon(e);
+  var items = [
+    ["Annual revenue", fmtMoney(r.annualRevenue), ""],
+    ["Gross profit", fmtMoney(r.grossProfit), r.grossProfit >= 0 ? "good" : "bad"],
+    ["Gross margin", r.margin.toFixed(1) + "%", r.margin >= 60 ? "good" : (r.margin >= 30 ? "" : "bad")],
+    ["Contribution after fixed costs", fmtMoney(r.contribution), r.contribution >= 0 ? "good" : "bad"],
+    ["Break-even customers", r.breakEven === null ? "N/A" : r.breakEven.toLocaleString("en-US"), ""],
+    ["Customer lifetime value", fmtMoney(r.ltv), ""],
+    ["LTV to CAC", r.ltvCac === null ? "N/A" : r.ltvCac.toFixed(2) + "x", r.ltvCac === null ? "" : (r.ltvCac >= 3 ? "good" : "bad")],
+    ["CAC payback", r.payback === null ? "N/A" : r.payback.toFixed(1) + " months", r.payback === null ? "" : (r.payback <= 12 ? "good" : "bad")]
+  ];
+  var box = document.getElementById("econ-results");
+  box.innerHTML = "";
+  items.forEach(function (it) {
+    var d = document.createElement("div"); d.className = "result";
+    var k = document.createElement("div"); k.className = "k"; k.textContent = it[0];
+    var v = document.createElement("div"); v.className = "v" + (it[2] ? " " + it[2] : ""); v.textContent = it[1];
+    d.appendChild(k); d.appendChild(v); box.appendChild(d);
+  });
+}
+ECON_FIELDS.forEach(function (f) {
+  document.getElementById("e-" + f).addEventListener("input", updateEconResults);
+});
+
+/* ---------- Sample / Clear ---------- */
+document.getElementById("btn-sample").addEventListener("click", function () {
+  state.blocks = Object.assign({}, SAMPLE_MODEL);
+  state.econ = Object.assign({}, SAMPLE_ECONOMICS);
+  state.step = 0;
+  persist(); renderBuilder(); renderEconomics();
+});
+document.getElementById("btn-clear").addEventListener("click", function () {
+  if (!confirm("Clear all blocks and economics? This cannot be undone.")) return;
+  state.blocks = {};
+  state.econ = { price: 0, units: 0, customers: 0, varcost: 0, fixed: 0, cac: 0, years: 1 };
+  state.step = 0;
+  persist(); renderBuilder(); renderEconomics();
+});
+
+/* ---------- Init ---------- */
+renderBuilder();
+</script>
+</body>
+</html>
