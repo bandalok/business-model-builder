@@ -1,3 +1,5 @@
+[![CI](https://github.com/bandalok/business-model-builder/actions/workflows/ci.yml/badge.svg)](https://github.com/bandalok/business-model-builder/actions/workflows/ci.yml)
+
 # Business Model Builder
 
 A tool for product managers: fill in the nine blocks of the Business Model
